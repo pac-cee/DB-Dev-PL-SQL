@@ -1,0 +1,34 @@
+ @startuml
+!define Table(name,desc) class name as "desc" << (T,#FFAAAA) >>
+Table(Authors, "Authors Table") {
+  +AuthorID : NUMBER <<PK>>
+  +Name : VARCHAR2(100)
+  +Bio : CLOB
+  +Nationality : VARCHAR2(50)
+}
+Table(Books, "Books Table") {
+  +BookID : NUMBER <<PK>>
+  +Title : VARCHAR2(255)
+  +AuthorID : NUMBER <<FK>>
+  +PublishedDate : DATE
+}
+Table(Categories, "Categories Table") {
+  +CategoryID : NUMBER <<PK>>
+  +CategoryName : VARCHAR2(100)
+}
+Table(BookCategories, "Mapping Table for Books and Categories") {
+  +BookID : NUMBER <<PK, FK>>
+  +CategoryID : NUMBER <<PK, FK>>
+}
+Table(Borrowings, "Borrowings Table") {
+  +BorrowID : NUMBER <<PK>>
+  +BookID : NUMBER <<FK>>
+  +BorrowDate : DATE
+  +ReturnDate : DATE
+}
+
+Authors "1" -- "0..*" Books : "writes"
+Books "1" -- "0..*" BookCategories : "belongs to"
+Categories "1" -- "0..*" BookCategories : "mapped in"
+Books "0..1" -- "0..*" Borrowings : "borrowed in"
+@enduml
