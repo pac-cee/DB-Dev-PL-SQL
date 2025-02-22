@@ -8,8 +8,8 @@
       "args": [],
       "stopAtEntry": false,
       "externalConsole": true,
-      "cwd": "d:/VScode/DATBASE/DB Dev PL SQL",
-      "program": "d:/VScode/DATBASE/DB Dev PL SQL/build/Debug/outDebug",
+      "cwd": "d:/VScode/DATBASE/DB Dev PL SQL/Learning_PLSQL",
+      "program": "d:/VScode/DATBASE/DB Dev PL SQL/Learning_PLSQL/build/Debug/outDebug",
       "MIMode": "gdb",
       "miDebuggerPath": "gdb",
       "setupCommands": [
