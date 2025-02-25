@@ -17,6 +17,7 @@ CREATE OR REPLACE PROCEDURE Calculate_VAT (
 BEGIN
     -- Calculate VAT by multiplying the total amount by the VAT rate
     temp_vat := total_amount * VAT_RATE;
+
     
     -- Set the output parameters
     vat := temp_vat;
