@@ -495,3 +495,261 @@ WHERE e.salary > 50000
 ORDER BY e.salary DESC
 FETCH FIRST 10 ROWS ONLY;
 /
+
+
+
+/*
+Let's dive into advanced PL/SQL concepts with practical examples. I'll cover exception handling, functions, procedures, packages, and best practices.
+
+### 1. Advanced Exception Handling
+
+#### a. User-Defined Exceptions
+```plsql
+DECLARE
+  negative_salary EXCEPTION;
+  PRAGMA EXCEPTION_INIT(negative_salary, -20001);
+  v_salary NUMBER := -5000;
+BEGIN
+  IF v_salary < 0 THEN
+    RAISE_APPLICATION_ERROR(-20001, 'Salary cannot be negative');
+  END IF;
+EXCEPTION
+  WHEN negative_salary THEN
+    DBMS_OUTPUT.PUT_LINE('Error: ' || SQLERRM);
+    ROLLBACK;
+END;
+/
+```
+
+#### b. Bulk Operation Exceptions (FORALL SAVE EXCEPTIONS)
+```plsql
+DECLARE
+  TYPE emp_table IS TABLE OF employees%ROWTYPE;
+  v_emps emp_table;
+  
+  ex_dml_errors EXCEPTION;
+  PRAGMA EXCEPTION_INIT(ex_dml_errors, -24381);
+BEGIN
+  SELECT * BULK COLLECT INTO v_emps FROM employees;
+  
+  -- Intentionally create duplicate ID error
+  FORALL i IN 1..v_emps.COUNT SAVE EXCEPTIONS
+    INSERT INTO employees VALUES v_emps(i);
+  
+EXCEPTION
+  WHEN ex_dml_errors THEN
+    DBMS_OUTPUT.PUT_LINE('Number of errors: ' || SQL%BULK_EXCEPTIONS.COUNT);
+    FOR j IN 1..SQL%BULK_EXCEPTIONS.COUNT LOOP
+      DBMS_OUTPUT.PUT_LINE('Error ' || j || ': Index ' 
+        || SQL%BULK_EXCEPTIONS(j).ERROR_INDEX || ' - Code ' 
+        || SQL%BULK_EXCEPTIONS(j).ERROR_CODE);
+    END LOOP;
+END;
+/
+```
+
+### 2. Advanced Functions
+
+#### a. Deterministic Function
+```plsql
+CREATE OR REPLACE FUNCTION calculate_tax(
+  p_salary NUMBER
+) RETURN NUMBER DETERMINISTIC
+IS
+BEGIN
+  RETURN p_salary * 0.2; -- 20% tax
+END;
+/
+
+-- Usage in SQL
+SELECT employee_id, calculate_tax(salary) AS tax
+FROM employees;
+```
+
+#### b. Result-Cached Function
+```plsql
+CREATE OR REPLACE FUNCTION get_department_name(
+  p_dept_id NUMBER
+) RETURN VARCHAR2 RESULT_CACHE
+IS
+  v_dept_name departments.department_name%TYPE;
+BEGIN
+  SELECT department_name INTO v_dept_name
+  FROM departments
+  WHERE department_id = p_dept_id;
+  
+  RETURN v_dept_name;
+END;
+/
+```
+
+### 3. Advanced Procedures
+
+#### a. Transaction Control
+```plsql
+CREATE OR REPLACE PROCEDURE update_salary(
+  p_emp_id IN NUMBER,
+  p_new_salary IN NUMBER
+)
+IS
+BEGIN
+  UPDATE employees
+  SET salary = p_new_salary
+  WHERE employee_id = p_emp_id;
+  
+  -- Explicit commit
+  COMMIT;
+EXCEPTION
+  WHEN OTHERS THEN
+    ROLLBACK;
+    RAISE;
+END;
+/
+```
+
+#### b. Autonomous Transaction (For Logging)
+```plsql
+CREATE OR REPLACE PROCEDURE log_error(
+  p_error_message VARCHAR2
+) 
+IS
+  PRAGMA AUTONOMOUS_TRANSACTION;
+BEGIN
+  INSERT INTO error_log (error_date, error_message)
+  VALUES (SYSDATE, p_error_message);
+  
+  COMMIT;
+END;
+/
+
+-- Usage in main procedure
+CREATE OR REPLACE PROCEDURE process_order IS
+BEGIN
+  -- Business logic here
+  ...
+EXCEPTION
+  WHEN OTHERS THEN
+    log_error(SQLERRM);
+    RAISE;
+END;
+/
+```
+
+### 4. Packages
+
+#### a. Package Specification
+```plsql
+CREATE OR REPLACE PACKAGE emp_pkg AS
+  -- Global constant
+  g_max_salary CONSTANT NUMBER := 100000;
+  
+  -- Function declaration
+  FUNCTION get_employee_name(p_emp_id NUMBER) RETURN VARCHAR2;
+  
+  -- Procedure declaration
+  PROCEDURE update_salary(p_emp_id NUMBER, p_new_salary NUMBER);
+END emp_pkg;
+/
+```
+
+#### b. Package Body
+```plsql
+CREATE OR REPLACE PACKAGE BODY emp_pkg AS
+  -- Private variable
+  v_audit_enabled BOOLEAN := TRUE;
+  
+  FUNCTION get_employee_name(p_emp_id NUMBER) RETURN VARCHAR2 IS
+    v_full_name VARCHAR2(100);
+  BEGIN
+    SELECT first_name || ' ' || last_name
+    INTO v_full_name
+    FROM employees
+    WHERE employee_id = p_emp_id;
+    
+    RETURN v_full_name;
+  EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+      RETURN NULL;
+  END;
+  
+  PROCEDURE update_salary(p_emp_id NUMBER, p_new_salary NUMBER) IS
+  BEGIN
+    IF p_new_salary > g_max_salary THEN
+      RAISE_APPLICATION_ERROR(-20002, 'Salary exceeds maximum allowed');
+    END IF;
+    
+    UPDATE employees
+    SET salary = p_new_salary
+    WHERE employee_id = p_emp_id;
+    
+    IF v_audit_enabled THEN
+      INSERT INTO salary_audit 
+      VALUES (p_emp_id, p_new_salary, SYSDATE, USER);
+    END IF;
+    
+    COMMIT;
+  END;
+END emp_pkg;
+/
+```
+
+### 5. Best Practices
+
+1. **Error Handling**:
+   - Always handle `NO_DATA_FOUND` and `TOO_MANY_ROWS` exceptions
+   - Use `RAISE_APPLICATION_ERROR` for business rule violations
+   - Log errors before re-raising them
+
+2. **Parameter Modes**:
+   - Use `IN` parameters for input-only values
+   - Use `OUT` parameters sparingly - prefer function returns
+   - Use `NOCOPY` hint for large `OUT` parameters
+   ```plsql
+   PROCEDURE process_data(
+     p_input IN CLOB,
+     p_output OUT NOCOPY CLOB
+   )
+   ```
+
+3. **Performance**:
+   - Use bulk operations (BULK COLLECT, FORALL) for batch processing
+   - Use result-cached functions for frequently called, static data
+   - Avoid context switching between SQL and PL/SQL engines
+
+4. **Security**:
+   - Use invoker's rights (`AUTHID CURRENT_USER`) when appropriate
+   - Sanitize inputs to prevent SQL injection
+   - Encrypt sensitive data in packages
+
+### 6. Advanced Exception Propagation
+
+```plsql
+CREATE OR REPLACE PROCEDURE outer_proc IS
+  e_custom_error EXCEPTION;
+  
+  PROCEDURE inner_proc IS
+  BEGIN
+    RAISE e_custom_error;
+  END;
+  
+BEGIN
+  inner_proc;
+EXCEPTION
+  WHEN e_custom_error THEN
+    DBMS_OUTPUT.PUT_LINE('Custom error handled at outer level');
+    log_error('Custom error occurred');
+    RAISE;  -- Re-raise to calling environment
+END;
+/
+```
+
+This structure demonstrates how exceptions bubble up through nested procedures until handled or reach the calling environment.
+
+Practice these concepts by:
+1. Creating a package for employee management
+2. Implementing complex business rules with error logging
+3. Using bulk operations for data migration tasks
+4. Creating result-cached functions for frequently accessed reference data
+
+Remember to always test your code with both expected and unexpected input values, and consider edge cases in your exception handling.
+*/
