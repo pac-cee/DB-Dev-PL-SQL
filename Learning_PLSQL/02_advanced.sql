@@ -75,7 +75,7 @@ DECLARE
     CURSOR emp_cursor IS
         SELECT employee_id, first_name, salary 
         FROM hr.employees 
-        WHERE salary > 5000;
+        WHERE salary > 5000; 
     
     v_emp_record emp_cursor%ROWTYPE;
 BEGIN
