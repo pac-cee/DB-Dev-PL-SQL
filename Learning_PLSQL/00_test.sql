@@ -1,5 +1,5 @@
 -- 1. DDL (Data Definition Language)
-
+alter session set container = PACIFIQUE;
 -- CREATE commands
 CREATE TABLE employees (
     emp_id NUMBER PRIMARY KEY,
@@ -7,6 +7,9 @@ CREATE TABLE employees (
     salary NUMBER(10,2),
     hire_date DATE DEFAULT SYSDATE
 );
+
+select * from employees;
+drop table employees;
 
 -- ALTER commands
 ALTER TABLE employees ADD (department VARCHAR2(50));
