@@ -15,6 +15,152 @@ END;
 BEGIN
     greet_user('John');
 END;
+
+-- Example 1: Simple Procedure to Display a Message
+CREATE OR REPLACE PROCEDURE greet_user (p_username VARCHAR2) AS
+BEGIN
+  DBMS_OUTPUT.PUT_LINE('Hello, ' || p_username || '!');
+END;
+/
+
+-- Calling the procedure:
+BEGIN
+  greet_user('Alice');
+END;
+/
+
+-- Example 2: Procedure with IN, OUT, and IN OUT parameters
+CREATE OR REPLACE PROCEDURE calculate_area (
+  p_radius IN NUMBER,
+  p_area OUT NUMBER,
+  p_circumference OUT NUMBER
+) AS
+  pi CONSTANT NUMBER := 3.14159;
+BEGIN
+  p_area := pi * p_radius * p_radius;
+  p_circumference := 2 * pi * p_radius;
+END;
+/
+
+-- Calling the procedure:
+DECLARE
+  v_radius NUMBER := 5;
+  v_area NUMBER;
+  v_circumference NUMBER;
+BEGIN
+  calculate_area(v_radius, v_area, v_circumference);
+  DBMS_OUTPUT.PUT_LINE('Area: ' || v_area);
+  DBMS_OUTPUT.PUT_LINE('Circumference: ' || v_circumference);
+END;
+/
+
+-- Example 3: Procedure with exception handling
+CREATE OR REPLACE PROCEDURE divide_numbers (
+  p_numerator NUMBER,
+  p_denominator NUMBER,
+  p_result OUT NUMBER
+) AS
+BEGIN
+  IF p_denominator = 0 THEN
+    RAISE ZERO_DIVIDE;
+  END IF;
+  p_result := p_numerator / p_denominator;
+EXCEPTION
+  WHEN ZERO_DIVIDE THEN
+    DBMS_OUTPUT.PUT_LINE('Error: Division by zero.');
+    p_result := NULL;
+  WHEN OTHERS THEN
+    DBMS_OUTPUT.PUT_LINE('An unexpected error occurred.');
+    p_result := NULL;
+END;
+/
+
+-- Calling the procedure:
+DECLARE
+  v_numerator NUMBER := 10;
+  v_denominator NUMBER := 0;
+  v_result NUMBER;
+BEGIN
+  divide_numbers(v_numerator, v_denominator, v_result);
+  IF v_result IS NOT NULL THEN
+    DBMS_OUTPUT.PUT_LINE('Result: ' || v_result);
+  END IF;
+END;
+/
+
+-- Example 4: Procedure with a cursor and loop
+CREATE OR REPLACE PROCEDURE display_employees AS
+  CURSOR emp_cursor IS
+    SELECT employee_id, last_name, salary
+    FROM employees;
+  v_employee_id employees.employee_id%TYPE;
+  v_last_name employees.last_name%TYPE;
+  v_salary employees.salary%TYPE;
+BEGIN
+  OPEN emp_cursor;
+  LOOP
+    FETCH emp_cursor INTO v_employee_id, v_last_name, v_salary;
+    EXIT WHEN emp_cursor%NOTFOUND;
+    DBMS_OUTPUT.PUT_LINE('Employee ID: ' || v_employee_id || ', Last Name: ' || v_last_name || ', Salary: ' || v_salary);
+  END LOOP;
+  CLOSE emp_cursor;
+EXCEPTION
+  WHEN NO_DATA_FOUND THEN
+    DBMS_OUTPUT.PUT_LINE('No employee data found.');
+  WHEN OTHERS THEN
+    DBMS_OUTPUT.PUT_LINE('An error occurred while fetching employee data.');
+END;
+/
+
+-- Calling the procedure:
+BEGIN
+  display_employees;
+END;
+/
+
+--Example 5: Procedure with an IN OUT parameter to increment a value.
+CREATE OR REPLACE PROCEDURE increment_value(io_value IN OUT NUMBER) AS
+BEGIN
+    io_value := io_value + 1;
+END;
+/
+
+--Calling the procedure
+DECLARE
+    my_value NUMBER := 10;
+BEGIN
+    increment_value(my_value);
+    DBMS_OUTPUT.PUT_LINE('Incremented value: ' || my_value);
+END;
+/
+
+--Example 6: Procedure demonstrating the use of a record type.
+CREATE OR REPLACE PROCEDURE display_employee_record(p_employee_id employees.employee_id%TYPE) AS
+    TYPE employee_record_type IS RECORD (
+        last_name employees.last_name%TYPE,
+        salary employees.salary%TYPE
+    );
+    employee_record employee_record_type;
+BEGIN
+    SELECT last_name, salary
+    INTO employee_record
+    FROM employees
+    WHERE employee_id = p_employee_id;
+
+    DBMS_OUTPUT.PUT_LINE('Employee Name: ' || employee_record.last_name || ', Salary: ' || employee_record.salary);
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('Employee with ID ' || p_employee_id || ' not found.');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('An error occurred.');
+END;
+/
+
+--Calling the procedure
+BEGIN
+    display_employee_record(100); --Replace 100 with an actual employee ID.
+END;
+
 /
 
 -- 2. Functions
@@ -148,5 +294,24 @@ BEGIN
     -- Print record
     DBMS_OUTPUT.PUT_LINE('Person: ' || v_person.first_name || ' ' || 
                         v_person.last_name || ', Age: ' || v_person.age);
+END;
+/
+-- First enable server output
+SET SERVEROUTPUT ON;
+
+-- Accept user input
+ACCEPT p_amount PROMPT 'Enter amount: ';
+
+DECLARE
+    v_total_amount NUMBER := &p_amount;
+    v_vat NUMBER;
+    v_final_amount NUMBER;
+BEGIN
+    v_vat := v_total_amount * 0.18;
+    v_final_amount := v_total_amount + v_vat;
+    
+    DBMS_OUTPUT.PUT_LINE('Amount: ' || v_total_amount);
+    DBMS_OUTPUT.PUT_LINE('VAT: ' || v_vat);
+    DBMS_OUTPUT.PUT_LINE('Final Amount: ' || v_final_amount);
 END;
 /
