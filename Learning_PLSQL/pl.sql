@@ -269,3 +269,158 @@ BEGIN
     DBMS_OUTPUT.PUT_LINE('Average Salary: $' || v_summary.avg_salary);
 END;
 /
+
+-- 10. Advanced Procedure with Nested Functions and Both Cursor Types
+CREATE OR REPLACE PROCEDURE process_department_employees(
+    p_dept_id IN NUMBER,
+    p_salary_increase IN NUMBER DEFAULT 0.05
+) IS
+    -- Nested function for validation
+    FUNCTION is_valid_increase(p_increase IN NUMBER) RETURN BOOLEAN IS
+    BEGIN
+        RETURN p_increase BETWEEN 0 AND 0.25;
+    END is_valid_increase;
+    
+    -- Nested function for bonus calculation
+    FUNCTION calculate_performance_bonus(
+        p_salary IN NUMBER,
+        p_performance_rating IN NUMBER
+    ) RETURN NUMBER IS
+    BEGIN
+        RETURN p_salary * (p_performance_rating / 10);
+    END calculate_performance_bonus;
+    
+    -- Explicit Cursor
+    CURSOR emp_cur IS
+        SELECT employee_id, first_name, last_name, salary, hire_date
+        FROM employees
+        WHERE department_id = p_dept_id
+        FOR UPDATE OF salary;
+        
+    -- Variables
+    v_total_adjustments NUMBER := 0;
+    v_employees_updated NUMBER := 0;
+    
+BEGIN
+    -- Validate salary increase
+    IF NOT is_valid_increase(p_salary_increase) THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Invalid salary increase percentage');
+    END IF;
+    
+    -- Process each employee using explicit cursor
+    FOR emp_rec IN emp_cur LOOP
+        UPDATE employees
+        SET salary = salary * (1 + p_salary_increase)
+        WHERE CURRENT OF emp_cur;
+        
+        v_total_adjustments := v_total_adjustments + (emp_rec.salary * p_salary_increase);
+        v_employees_updated := v_employees_updated + 1;
+    END LOOP;
+    
+    -- Demonstrate implicit cursor
+    UPDATE employees
+    SET salary = salary + 
+        calculate_performance_bonus(salary, 8)
+    WHERE department_id = p_dept_id
+    AND months_between(SYSDATE, hire_date) > 60;
+    
+    -- Using implicit cursor attributes
+    IF SQL%FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('Performance bonuses applied to ' || 
+                            SQL%ROWCOUNT || ' senior employees');
+    END IF;
+    
+    DBMS_OUTPUT.PUT_LINE('Total employees processed: ' || v_employees_updated);
+    DBMS_OUTPUT.PUT_LINE('Total salary adjustments: $' || v_total_adjustments);
+    
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        RAISE_APPLICATION_ERROR(-20002, 'Error processing department: ' || SQLERRM);
+END process_department_employees;
+/
+
+-- 11. Advanced Triggers with Compound and Statement-Level Events
+CREATE OR REPLACE TRIGGER trg_employee_changes
+    AFTER INSERT OR UPDATE OR DELETE ON employees
+    FOR EACH ROW
+DECLARE
+    v_action VARCHAR2(10);
+    v_audit_id NUMBER;
+BEGIN
+    -- Determine the type of action
+    v_action := CASE
+        WHEN INSERTING THEN 'INSERT'
+        WHEN UPDATING THEN 'UPDATE'
+        WHEN DELETING THEN 'DELETE'
+    END;
+    
+    -- Generate audit ID
+    SELECT NVL(MAX(audit_id), 0) + 1 
+    INTO v_audit_id 
+    FROM salary_audit_log;
+    
+    -- Log the change
+    IF v_action IN ('UPDATE', 'DELETE') THEN
+        INSERT INTO salary_audit_log (
+            audit_id, employee_id, old_salary,
+            new_salary, change_date, changed_by
+        ) VALUES (
+            v_audit_id,
+            :OLD.employee_id,
+            :OLD.salary,
+            CASE WHEN v_action = 'UPDATE' THEN :NEW.salary ELSE NULL END,
+            SYSDATE,
+            USER
+        );
+    END IF;
+    
+    -- Additional logging for new employees
+    IF v_action = 'INSERT' THEN
+        INSERT INTO salary_audit_log (
+            audit_id, employee_id, old_salary,
+            new_salary, change_date, changed_by
+        ) VALUES (
+            v_audit_id,
+            :NEW.employee_id,
+            NULL,
+            :NEW.salary,
+            SYSDATE,
+            USER
+        );
+    END IF;
+END trg_employee_changes;
+/
+
+-- Test the new procedure and trigger
+DECLARE
+    v_dept_id NUMBER := 10;
+BEGIN
+    -- Test the procedure
+    process_department_employees(
+        p_dept_id => v_dept_id,
+        p_salary_increase => 0.10
+    );
+    
+    -- Test the trigger with an update
+    UPDATE employees
+    SET salary = salary * 1.05
+    WHERE department_id = v_dept_id;
+    
+    COMMIT;
+    
+    -- Display audit results
+    FOR audit_rec IN (
+        SELECT * FROM salary_audit_log
+        WHERE change_date > SYSDATE - 1/24
+        ORDER BY audit_id DESC
+    ) LOOP
+        DBMS_OUTPUT.PUT_LINE(
+            'Audit ID: ' || audit_rec.audit_id ||
+            ', Employee: ' || audit_rec.employee_id ||
+            ', Old Salary: ' || audit_rec.old_salary ||
+            ', New Salary: ' || audit_rec.new_salary
+        );
+    END LOOP;
+END;
+/
