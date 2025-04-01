@@ -151,3 +151,121 @@ BEGIN
     );
 END trg_audit_salary_change;
 /
+
+-- 9. Nested Functions, Collections, Records, and Cursors
+CREATE OR REPLACE PACKAGE employee_utils IS
+    -- Collection type definitions
+    TYPE emp_name_list IS TABLE OF VARCHAR2(100);
+    TYPE salary_list IS TABLE OF NUMBER;
+    
+    -- Record type definition
+    TYPE emp_summary_rec IS RECORD (
+        dept_id     NUMBER,
+        dept_name   VARCHAR2(50),
+        emp_count   NUMBER,
+        total_salary NUMBER,
+        avg_salary   NUMBER
+    );
+    
+    -- Package function declarations
+    FUNCTION get_department_summary(p_dept_id NUMBER) RETURN emp_summary_rec;
+    FUNCTION calculate_bonus(p_salary NUMBER, p_years NUMBER) RETURN NUMBER;
+END employee_utils;
+/
+
+CREATE OR REPLACE PACKAGE BODY employee_utils IS
+    -- Main function with nested function
+    FUNCTION calculate_bonus(p_salary NUMBER, p_years NUMBER) RETURN NUMBER IS
+        -- Nested function
+        FUNCTION get_bonus_percentage(p_years IN NUMBER) RETURN NUMBER IS
+        BEGIN
+            CASE
+                WHEN p_years < 2 THEN RETURN 0.05;
+                WHEN p_years < 5 THEN RETURN 0.10;
+                WHEN p_years < 10 THEN RETURN 0.15;
+                ELSE RETURN 0.20;
+            END CASE;
+        END get_bonus_percentage;
+        
+        v_bonus_percent NUMBER;
+    BEGIN
+        -- Using the nested function
+        v_bonus_percent := get_bonus_percentage(p_years);
+        RETURN p_salary * v_bonus_percent;
+    END calculate_bonus;
+
+    -- Function using records and cursors
+    FUNCTION get_department_summary(p_dept_id NUMBER) RETURN emp_summary_rec IS
+        -- Declare record variable
+        v_summary emp_summary_rec;
+        
+        -- Declare collections
+        v_emp_names emp_name_list := emp_name_list();
+        v_salaries salary_list := salary_list();
+        
+        -- Cursor declaration
+        CURSOR dept_emp_cur IS
+            SELECT e.first_name || ' ' || e.last_name as full_name,
+                   e.salary,
+                   d.department_name
+            FROM employees e
+            JOIN departments d ON e.department_id = d.department_id
+            WHERE e.department_id = p_dept_id;
+            
+        -- Cursor variables
+        v_emp_rec dept_emp_cur%ROWTYPE;
+    BEGIN
+        -- Initialize record
+        v_summary.dept_id := p_dept_id;
+        v_summary.emp_count := 0;
+        v_summary.total_salary := 0;
+        
+        -- Open and fetch cursor data
+        OPEN dept_emp_cur;
+        LOOP
+            FETCH dept_emp_cur INTO v_emp_rec;
+            EXIT WHEN dept_emp_cur%NOTFOUND;
+            
+            -- Populate collections
+            v_emp_names.EXTEND;
+            v_emp_names(v_emp_names.LAST) := v_emp_rec.full_name;
+            
+            v_salaries.EXTEND;
+            v_salaries(v_salaries.LAST) := v_emp_rec.salary;
+            
+            -- Update summary
+            v_summary.dept_name := v_emp_rec.department_name;
+            v_summary.emp_count := v_summary.emp_count + 1;
+            v_summary.total_salary := v_summary.total_salary + v_emp_rec.salary;
+        END LOOP;
+        CLOSE dept_emp_cur;
+        
+        -- Calculate average salary
+        IF v_summary.emp_count > 0 THEN
+            v_summary.avg_salary := v_summary.total_salary / v_summary.emp_count;
+        END IF;
+        
+        RETURN v_summary;
+    END get_department_summary;
+END employee_utils;
+/
+
+-- Test the package
+DECLARE
+    v_summary employee_utils.emp_summary_rec;
+    v_bonus NUMBER;
+BEGIN
+    -- Test nested function
+    v_bonus := employee_utils.calculate_bonus(50000, 7);
+    DBMS_OUTPUT.PUT_LINE('Bonus for 7 years: $' || v_bonus);
+    
+    -- Test record and cursor function
+    v_summary := employee_utils.get_department_summary(10);
+    DBMS_OUTPUT.PUT_LINE('Department Summary:');
+    DBMS_OUTPUT.PUT_LINE('-----------------');
+    DBMS_OUTPUT.PUT_LINE('Department: ' || v_summary.dept_name);
+    DBMS_OUTPUT.PUT_LINE('Employee Count: ' || v_summary.emp_count);
+    DBMS_OUTPUT.PUT_LINE('Total Salary: $' || v_summary.total_salary);
+    DBMS_OUTPUT.PUT_LINE('Average Salary: $' || v_summary.avg_salary);
+END;
+/
