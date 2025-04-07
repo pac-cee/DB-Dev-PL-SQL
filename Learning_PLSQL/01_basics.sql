@@ -109,12 +109,12 @@ END;
 SET SERVEROUTPUT ON;
 
 CREATE OR REPLACE PROCEDURE Calculate_loan_interest(
-    p_principal IN NUMBER;
-    p_interest IN NUMBER ;
-    p_loan IN NUMBER ;
-    P_Calculated_interest  IN OUT NUMBER;
+    p_principal IN NUMBER ,
+    p_interest IN NUMBER ,
+    p_loan IN NUMBER ,
+    P_Calculated_interest  IN OUT NUMBER
 ) AS 
-V_REDUCTION CONSTANT NUMBER := 0.002;`1`
+V_REDUCTION CONSTANT NUMBER := 0.002;
 BEGIN 
     IF p_principal <= 0 THEN 
         RAISE_APPLICATION_ERROR(-20001, 'The principal must be greater than zero');
@@ -129,7 +129,7 @@ EXCEPTION
         DBMS_OUTPUT.PUT_LINE('Division by zero error');
 END Calculate_loan_interest;
 
-END Calculate_loan_interest ;
+
 /
 BEGIN
         Calculate_loan_interest(1000000, 0.05, 2);
@@ -139,8 +139,8 @@ BEGIN
 END;
 
 CREATE OR REPLACE PROCEDURE REDUCED_FEES(
-    p_payment_date IN DATE  AS SYSDATE,
-    p_due_date IN DATE AS SYSDATE,
+    p_payment_date IN DATE DEFAULT SYSDATE,
+    p_due_date IN DATE DEFAULT SYSDATE,
     p_total_fees IN NUMBER,
     p_reduced_fee OUT NUMBER
 )IS
@@ -148,17 +148,20 @@ BEGIN
     v_rate_reduction:=0.002;
     v_temp;
     IF p_total_fees <0 THEN 
-    RAISE_APPLICATION_ERROR('ERROR')
-    IF p_payment_date := '' AND p_payment_date != SYSDATE THEN 
-    RAISE_APPLICATION_ERROR
+    RAISE_APPLICATION_ERROR('ERROR');
+    END IF;  -- Added missing END IF for p_total_fees check
+    IF p_payment_date IS NULL AND p_payment_date != SYSDATE THEN 
+    RAISE_APPLICATION_ERROR('ERROR');  -- Added missing error message
+    END IF;  -- Added missing END IF for p_payment_date check
     
-     if p_payment_date < p_due_date THEN 
-  v_temp := v_rate_reduction*p_total_fees;
-  p_reduced_fee := p_total_fees - v_temp;
-ELSE
-  p_reduced_fee := p_total_fees;
-END IF; 
-  DBMS_OUTPUT.PUT_LINE('THE FEES AMOUNT TO BE PAID IS :' || p_reduced_fee);
-  EXCEPTION
-  WHEN OTHERS THEN
-  DBMS_OUTPUT.PUT_LINE('ERROR');
+     IF p_payment_date < p_due_date THEN 
+        v_temp := v_rate_reduction * p_total_fees;
+        p_reduced_fee := p_total_fees - v_temp;
+    ELSE
+        p_reduced_fee := p_total_fees;
+    END IF; 
+    DBMS_OUTPUT.PUT_LINE('THE FEES AMOUNT TO BE PAID IS :' || p_reduced_fee);
+EXCEPTION
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('ERROR');
+END REDUCED_FEES;  -- Added missing END for the procedure
