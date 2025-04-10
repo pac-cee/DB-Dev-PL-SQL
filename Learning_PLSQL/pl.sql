@@ -186,7 +186,7 @@ CREATE OR REPLACE PACKAGE BODY employee_utils IS
                 ELSE RETURN 0.20;
             END CASE;
         END get_bonus_percentage;
-        
+        /
         v_bonus_percent NUMBER;
     BEGIN
         -- Using the nested function
