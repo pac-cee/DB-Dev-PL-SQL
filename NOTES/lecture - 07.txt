@@ -1,0 +1,624 @@
+Below is a comprehensive explanation of Lecture 07 on “Control Structures and Error Handling in PL/SQL” along with complete solutions for the assignments included in the lecture. This explanation is divided into two major parts:
+
+1. **Detailed Overview of Key Concepts**  
+2. **Assignment Solutions**
+
+All explanations and code samples reflect the material in the lecture (citeturn1file0).
+
+---
+
+## 1. Detailed Overview of Key Concepts
+
+### 1.1. Control Structures in PL/SQL
+
+Control structures in PL/SQL let you direct the flow of your program execution. They fall into these main categories:
+
+#### A. **Conditional Statements**
+
+- **IF-THEN / IF-THEN-ELSE / IF-THEN-ELSIF**  
+  These statements evaluate conditions and execute different code blocks based on whether a condition is true or false.
+
+  **Syntax Examples:**
+
+  - *IF-THEN:*
+    ```sql
+    IF condition THEN
+       -- statements if condition is true
+    END IF;
+    ```
+
+  - *IF-THEN-ELSE:*
+    ```sql
+    IF condition THEN
+       -- statements if condition is true
+    ELSE
+       -- statements if condition is false
+    END IF;
+    ```
+
+  - *IF-THEN-ELSIF-ELSE:*
+    ```sql
+    IF condition1 THEN
+       -- block for condition1
+    ELSIF condition2 THEN
+       -- block for condition2
+    ELSE
+       -- block if none match
+    END IF;
+    ```
+    
+  **Example (grading a score):**
+    ```sql
+    DECLARE
+       score NUMBER := 75;
+       grade CHAR(1);
+    BEGIN
+       IF score >= 90 THEN
+          grade := 'A';
+       ELSIF score >= 80 THEN
+          grade := 'B';
+       ELSIF score >= 70 THEN
+          grade := 'C';
+       ELSIF score >= 60 THEN
+          grade := 'D';
+       ELSE
+          grade := 'F';
+       END IF;
+       DBMS_OUTPUT.PUT_LINE('Grade: ' || grade);
+    END;
+    /
+    ```
+
+- **CASE Statements**  
+  CASE statements are an alternative to multiple IF-ELSIF conditions when testing one expression against several possible values. They come in two forms:
+  
+  - *Simple CASE* (compares an expression to constant values):
+    ```sql
+    CASE expression
+       WHEN value1 THEN
+          -- statements
+       WHEN value2 THEN
+          -- statements
+       ELSE
+          -- default statements
+    END CASE;
+    ```
+
+  - *Search CASE* (each WHEN clause contains its own condition):
+    ```sql
+    CASE
+       WHEN condition1 THEN
+          -- statements
+       WHEN condition2 THEN
+          -- statements
+       ELSE
+          -- default statements
+    END CASE;
+    ```
+    
+  **Example:**
+    ```sql
+    DECLARE
+       grade CHAR(1) := 'B';
+       message VARCHAR2(100);
+    BEGIN
+       CASE grade
+          WHEN 'A' THEN message := 'Excellent work!';
+          WHEN 'B' THEN message := 'Good job!';
+          WHEN 'C' THEN message := 'Fair performance.';
+          WHEN 'D' THEN message := 'Needs improvement.';
+          WHEN 'F' THEN message := 'Failed. Please try again.';
+          ELSE message := 'Invalid grade.';
+       END CASE;
+       DBMS_OUTPUT.PUT_LINE('Message: ' || message);
+    END;
+    /
+    ```
+
+#### B. **Iterative (Loop) Statements**
+
+Loops let you repeat a block of code:
+
+- **Simple LOOP:**  
+  Repeats until a manual `EXIT` statement is executed.
+  ```sql
+  DECLARE
+     i NUMBER := 1;
+  BEGIN
+     LOOP
+        DBMS_OUTPUT.PUT_LINE('Iteration ' || i);
+        i := i + 1;
+        EXIT WHEN i > 5;
+     END LOOP;
+  END;
+  /
+  ```
+  
+- **WHILE Loop:**  
+  Evaluates a condition before each iteration.
+  ```sql
+  DECLARE
+     i NUMBER := 1;
+  BEGIN
+     WHILE i <= 5 LOOP
+        DBMS_OUTPUT.PUT_LINE('Iteration ' || i);
+        i := i + 1;
+     END LOOP;
+  END;
+  /
+  ```
+  
+- **FOR Loop:**  
+  Iterates automatically over a given range (or in reverse order when specified).
+  ```sql
+  BEGIN
+     FOR i IN 1..5 LOOP
+        DBMS_OUTPUT.PUT_LINE('Iteration ' || i);
+     END LOOP;
+  END;
+  /
+  ```
+  
+  **Reversed Order:**
+  ```sql
+  BEGIN
+     FOR i IN REVERSE 1..5 LOOP
+        DBMS_OUTPUT.PUT_LINE('Iteration ' || i);
+     END LOOP;
+  END;
+  /
+  ```
+
+- **Nested Loops and GOTO:**  
+  Labels may be added to manage nested loops. GOTO allows you to jump to a labeled section but is generally discouraged unless necessary.
+  
+  **Example of a nested loop with labels:**
+  ```sql
+  DECLARE
+     i NUMBER := 1;
+     j NUMBER;
+  BEGIN
+     <<outer_loop>>
+     FOR i IN 1..3 LOOP
+        <<inner_loop>>
+        FOR j IN 1..3 LOOP
+           DBMS_OUTPUT.PUT_LINE('i = ' || i || ', j = ' || j);
+        END LOOP inner_loop;
+     END LOOP outer_loop;
+  END;
+  /
+  ```
+
+#### C. **Sequential Control**
+
+In addition to the above, PL/SQL also provides the ability to control the sequence using labels and the `GOTO` statement (used sparingly).
+
+---
+
+### 1.2. Error and Exception Handling
+
+Error handling in PL/SQL is accomplished using the `EXCEPTION` block within a PL/SQL block or stored subprogram. This section catches and handles runtime errors. 
+
+#### Exception Types
+
+- **Predefined Exceptions:** Automatically raised by Oracle (e.g., `NO_DATA_FOUND`, `ZERO_DIVIDE`, `TOO_MANY_ROWS`).
+- **User-Defined Exceptions:** Custom exceptions declared by the programmer and raised using the `RAISE` or `RAISE_APPLICATION_ERROR` statements.
+
+#### Exception Handling Syntax
+
+```sql
+BEGIN
+   -- main code that may raise an error
+EXCEPTION
+   WHEN NO_DATA_FOUND THEN
+      DBMS_OUTPUT.PUT_LINE('No data found.');
+   WHEN OTHERS THEN
+      DBMS_OUTPUT.PUT_LINE('Error: ' || SQLERRM);
+END;
+/
+```
+
+- **WHEN OTHERS Clause:** A catch-all for any exceptions not specifically handled. It is best practice to log errors and not simply silence them.
+
+#### Raising Exceptions
+
+- **RAISE_APPLICATION_ERROR:** Used to generate a custom error message.
+  ```sql
+  IF some_condition THEN
+     RAISE_APPLICATION_ERROR(-20001, 'Custom error message');
+  END IF;
+  ```
+
+---
+
+## 2. Assignment Solutions
+
+The lecture provides several assignments covering both error handling and control structures. Below are detailed solutions for each.
+
+> **Note:** These examples are written as stand-alone procedures or anonymous blocks. You may need to adapt them to your database schema.
+
+---
+
+### 2.1. Error Handling Assignments
+
+#### **Assignment 1: usp_TransferFunds**
+
+**Task:** Create a procedure that transfers funds between accounts. In case of errors during the transfer, rollback the transaction and output an error message.
+
+**Solution:**
+```sql
+CREATE OR REPLACE PROCEDURE usp_TransferFunds (
+   p_from_account IN NUMBER,
+   p_to_account   IN NUMBER,
+   p_amount       IN NUMBER
+) IS
+BEGIN
+   -- Start the transaction
+   UPDATE accounts SET balance = balance - p_amount WHERE account_id = p_from_account;
+   UPDATE accounts SET balance = balance + p_amount WHERE account_id = p_to_account;
+   
+   COMMIT;
+   DBMS_OUTPUT.PUT_LINE('Transfer successful.');
+EXCEPTION
+   WHEN OTHERS THEN
+      ROLLBACK;
+      DBMS_OUTPUT.PUT_LINE('Error during fund transfer: ' || SQLERRM);
+END usp_TransferFunds;
+/
+```
+
+#### **Assignment 2: usp_ProcessPayment**
+
+**Task:** Create a procedure that calculates a payment amount and processes the payment. Use nested BEGIN-EXCEPTION blocks to handle specific errors (for instance, insufficient funds).
+
+**Solution:**
+```sql
+CREATE OR REPLACE PROCEDURE usp_ProcessPayment (
+   p_account_id IN NUMBER,
+   p_payment    IN NUMBER
+) IS
+   v_balance NUMBER;
+BEGIN
+   -- Fetch account balance
+   SELECT balance INTO v_balance FROM accounts WHERE account_id = p_account_id;
+   
+   BEGIN
+      IF v_balance < p_payment THEN
+         RAISE_APPLICATION_ERROR(-20001, 'Insufficient funds.');
+      END IF;
+      -- Process payment (deduct amount)
+      UPDATE accounts SET balance = v_balance - p_payment WHERE account_id = p_account_id;
+      DBMS_OUTPUT.PUT_LINE('Payment processed successfully.');
+   EXCEPTION
+      WHEN OTHERS THEN
+         DBMS_OUTPUT.PUT_LINE('Payment processing error: ' || SQLERRM);
+         -- Optionally, you could rollback or take corrective measures here
+   END;
+EXCEPTION
+   WHEN NO_DATA_FOUND THEN
+      DBMS_OUTPUT.PUT_LINE('Account not found.');
+   WHEN OTHERS THEN
+      DBMS_OUTPUT.PUT_LINE('Unexpected error: ' || SQLERRM);
+END usp_ProcessPayment;
+/
+```
+
+#### **Assignment 3: usp_OrderValidation**
+
+**Task:** Write a procedure that validates an order by checking available stock. If stock is insufficient, raise a custom error.
+
+**Solution:**
+```sql
+CREATE OR REPLACE PROCEDURE usp_OrderValidation (
+   p_order_id   IN NUMBER,
+   p_product_id IN NUMBER,
+   p_quantity   IN NUMBER
+) IS
+   v_stock NUMBER;
+BEGIN
+   SELECT stock INTO v_stock FROM products WHERE product_id = p_product_id;
+   
+   IF v_stock < p_quantity THEN
+      RAISE_APPLICATION_ERROR(-20002, 'Insufficient stock for this order.');
+   ELSE
+      DBMS_OUTPUT.PUT_LINE('Order validated successfully.');
+      -- Further order processing can be added here.
+   END IF;
+EXCEPTION
+   WHEN NO_DATA_FOUND THEN
+      DBMS_OUTPUT.PUT_LINE('Product not found.');
+   WHEN OTHERS THEN
+      DBMS_OUTPUT.PUT_LINE('Error during order validation: ' || SQLERRM);
+END usp_OrderValidation;
+/
+```
+
+#### **Assignment 4: usp_InputValidation**
+
+**Task:** Create a procedure to validate input data for an employee (e.g., age, salary, name). Raise errors for invalid data and handle exceptions.
+
+**Solution:**
+```sql
+CREATE OR REPLACE PROCEDURE usp_InputValidation (
+   p_employee_name IN VARCHAR2,
+   p_age           IN NUMBER,
+   p_salary        IN NUMBER
+) IS
+BEGIN
+   IF p_employee_name IS NULL OR TRIM(p_employee_name) = '' THEN
+      RAISE_APPLICATION_ERROR(-20003, 'Employee name is required.');
+   ELSIF p_age < 18 OR p_age > 65 THEN
+      RAISE_APPLICATION_ERROR(-20004, 'Employee age must be between 18 and 65.');
+   ELSIF p_salary < 0 THEN
+      RAISE_APPLICATION_ERROR(-20005, 'Salary must be a positive value.');
+   ELSE
+      DBMS_OUTPUT.PUT_LINE('Input validated: ' || p_employee_name || ', Age: ' || p_age || ', Salary: ' || p_salary);
+   END IF;
+EXCEPTION
+   WHEN OTHERS THEN
+      DBMS_OUTPUT.PUT_LINE('Input validation error: ' || SQLERRM);
+END usp_InputValidation;
+/
+```
+
+#### **Assignment 5: usp_CalculateBonus**
+
+**Task:** Write a procedure that accepts an employee ID, calculates the bonus, and handles NULL values in salary (raising an error if salary is null).
+
+**Solution:**
+```sql
+CREATE OR REPLACE PROCEDURE usp_CalculateBonus (
+   p_employee_id IN NUMBER
+) IS
+   v_salary NUMBER;
+   v_bonus  NUMBER;
+BEGIN
+   SELECT salary INTO v_salary FROM employees WHERE employee_id = p_employee_id;
+   
+   IF v_salary IS NULL THEN
+      RAISE_APPLICATION_ERROR(-20006, 'Salary is NULL. Cannot calculate bonus.');
+   ELSE
+      -- Example bonus: 10% of salary
+      v_bonus := v_salary * 0.10;
+      DBMS_OUTPUT.PUT_LINE('Bonus for employee ' || p_employee_id || ' is: ' || v_bonus);
+   END IF;
+EXCEPTION
+   WHEN NO_DATA_FOUND THEN
+      DBMS_OUTPUT.PUT_LINE('Employee not found.');
+   WHEN OTHERS THEN
+      DBMS_OUTPUT.PUT_LINE('Error calculating bonus: ' || SQLERRM);
+END usp_CalculateBonus;
+/
+```
+
+#### **Assignment 6: usp_AddTwoNumbers**
+
+**Task:** Create a procedure that accepts two parameters, adds them, and handles errors such as passing non-numeric data (INVALID_NUMBER).
+
+**Solution:**
+```sql
+CREATE OR REPLACE PROCEDURE usp_AddTwoNumbers (
+   p_num1 IN VARCHAR2,
+   p_num2 IN VARCHAR2
+) IS
+   v_sum NUMBER;
+BEGIN
+   -- Attempt conversion. If p_num1 or p_num2 are non-numeric, TO_NUMBER will raise an exception.
+   v_sum := TO_NUMBER(p_num1) + TO_NUMBER(p_num2);
+   DBMS_OUTPUT.PUT_LINE('The sum is: ' || v_sum);
+EXCEPTION
+   WHEN INVALID_NUMBER THEN
+      DBMS_OUTPUT.PUT_LINE('Invalid number format provided.');
+   WHEN OTHERS THEN
+      DBMS_OUTPUT.PUT_LINE('Error adding numbers: ' || SQLERRM);
+END usp_AddTwoNumbers;
+/
+```
+
+#### **Assignment 7: usp_FindSingleEmployee**
+
+**Task:** Write a procedure to query an employee by last name. Use exception handling to manage cases where more than one employee is found (TOO_MANY_ROWS).
+
+**Solution:**
+```sql
+CREATE OR REPLACE PROCEDURE usp_FindSingleEmployee (
+   p_last_name IN VARCHAR2
+) IS
+   v_employee_id employees.employee_id%TYPE;
+BEGIN
+   SELECT employee_id 
+     INTO v_employee_id
+     FROM employees
+    WHERE last_name = p_last_name;
+   
+   DBMS_OUTPUT.PUT_LINE('Employee ID: ' || v_employee_id);
+EXCEPTION
+   WHEN TOO_MANY_ROWS THEN
+      DBMS_OUTPUT.PUT_LINE('Error: Multiple employees found with the last name ' || p_last_name);
+   WHEN NO_DATA_FOUND THEN
+      DBMS_OUTPUT.PUT_LINE('No employee found with the last name ' || p_last_name);
+   WHEN OTHERS THEN
+      DBMS_OUTPUT.PUT_LINE('Unexpected error: ' || SQLERRM);
+END usp_FindSingleEmployee;
+/
+```
+
+#### **Assignment 8: usp_PlaceOrder**
+
+**Task:** Create a procedure to place an order. If the order quantity exceeds 100, raise a custom error; use WHEN OTHERS to catch any other errors.
+
+**Solution:**
+```sql
+CREATE OR REPLACE PROCEDURE usp_PlaceOrder (
+   p_order_id   IN NUMBER,
+   p_product_id IN NUMBER,
+   p_quantity   IN NUMBER
+) IS
+BEGIN
+   IF p_quantity > 100 THEN
+      RAISE_APPLICATION_ERROR(-20007, 'Order quantity exceeds limit (100).');
+   END IF;
+   
+   -- Assume order processing logic here...
+   DBMS_OUTPUT.PUT_LINE('Order ' || p_order_id || ' placed for product ' || p_product_id || ' with quantity ' || p_quantity);
+EXCEPTION
+   WHEN OTHERS THEN
+      DBMS_OUTPUT.PUT_LINE('Error placing order: ' || SQLERRM);
+END usp_PlaceOrder;
+/
+```
+
+---
+
+### 2.2. Control Structure Assignments
+
+#### **Assignment 1: usp_CalculateDiscount**
+
+**Task:** Create a procedure that accepts an order amount and applies:
+- 10% discount if amount > 5000,
+- 5% discount if between 3000 and 5000,
+- No discount otherwise.
+Print the final amount.
+
+**Solution:**
+```sql
+CREATE OR REPLACE PROCEDURE usp_CalculateDiscount (
+   p_order_amount IN NUMBER
+) IS
+   v_discounted_amount NUMBER;
+BEGIN
+   IF p_order_amount > 5000 THEN
+      v_discounted_amount := p_order_amount * 0.90;  -- 10% discount
+   ELSIF p_order_amount BETWEEN 3000 AND 5000 THEN
+      v_discounted_amount := p_order_amount * 0.95;  -- 5% discount
+   ELSE
+      v_discounted_amount := p_order_amount;
+   END IF;
+   
+   DBMS_OUTPUT.PUT_LINE('Final amount after discount: ' || v_discounted_amount);
+EXCEPTION
+   WHEN OTHERS THEN
+      DBMS_OUTPUT.PUT_LINE('Error in calculating discount: ' || SQLERRM);
+END usp_CalculateDiscount;
+/
+```
+
+#### **Assignment 2: usp_DisplayNumbers**
+
+**Task:** Create a procedure using a LOOP to print numbers from 1 to 10, using an EXIT condition.
+
+**Solution:**
+```sql
+CREATE OR REPLACE PROCEDURE usp_DisplayNumbers IS
+   v_num NUMBER := 1;
+BEGIN
+   LOOP
+      DBMS_OUTPUT.PUT_LINE('Number: ' || v_num);
+      v_num := v_num + 1;
+      EXIT WHEN v_num > 10;
+   END LOOP;
+END usp_DisplayNumbers;
+/
+```
+
+#### **Assignment 3: usp_Countdown**
+
+**Task:** Write a procedure that accepts a number and prints a countdown from that number to 1 using a WHILE loop.
+
+**Solution:**
+```sql
+CREATE OR REPLACE PROCEDURE usp_Countdown (
+   p_start IN NUMBER
+) IS
+   v_counter NUMBER := p_start;
+BEGIN
+   WHILE v_counter >= 1 LOOP
+      DBMS_OUTPUT.PUT_LINE('Countdown: ' || v_counter);
+      v_counter := v_counter - 1;
+   END LOOP;
+END usp_Countdown;
+/
+```
+
+#### **Assignment 4: usp_CalculateShippingFee**
+
+**Task:** Create a procedure that calculates shipping fees based on package weight:
+- Less than 1kg: $5,
+- Between 1kg and 5kg: $10,
+- Above 5kg: $20.
+
+**Solution:**
+```sql
+CREATE OR REPLACE PROCEDURE usp_CalculateShippingFee (
+   p_weight IN NUMBER
+) IS
+   v_shipping_fee NUMBER;
+BEGIN
+   IF p_weight < 1 THEN
+      v_shipping_fee := 5;
+   ELSIF p_weight BETWEEN 1 AND 5 THEN
+      v_shipping_fee := 10;
+   ELSE
+      v_shipping_fee := 20;
+   END IF;
+   DBMS_OUTPUT.PUT_LINE('Shipping fee for weight ' || p_weight || 'kg is: $' || v_shipping_fee);
+EXCEPTION
+   WHEN OTHERS THEN
+      DBMS_OUTPUT.PUT_LINE('Error calculating shipping fee: ' || SQLERRM);
+END usp_CalculateShippingFee;
+/
+```
+
+#### **Assignment 5: usp_TaxCalculator**
+
+**Task:** Create a procedure using nested IF-THEN (or IF-ELSIF) to compute tax based on income:
+- Income > 100,000: 30% tax,
+- Income between 50,000 and 100,000: 20%,
+- Income below 50,000: 10%.
+
+**Solution:**
+```sql
+CREATE OR REPLACE PROCEDURE usp_TaxCalculator (
+   p_income IN NUMBER
+) IS
+   v_tax NUMBER;
+BEGIN
+   IF p_income > 100000 THEN
+      v_tax := p_income * 0.30;
+   ELSIF p_income BETWEEN 50000 AND 100000 THEN
+      v_tax := p_income * 0.20;
+   ELSE
+      v_tax := p_income * 0.10;
+   END IF;
+   DBMS_OUTPUT.PUT_LINE('For an income of ' || p_income || ', the calculated tax is: ' || v_tax);
+EXCEPTION
+   WHEN OTHERS THEN
+      DBMS_OUTPUT.PUT_LINE('Error calculating tax: ' || SQLERRM);
+END usp_TaxCalculator;
+/
+```
+
+---
+
+## Final Remarks
+
+The lecture covers the following topics in depth:
+
+- **Control Structures:**  
+  - Conditional statements (IF, CASE) for decision making.
+  - Loop structures (LOOP, FOR, WHILE) for iteration and repetition.
+  - The importance of labels and the use of GOTO (sparingly).
+
+- **Error Handling:**  
+  - The use of predefined and user-defined exceptions.
+  - How to catch exceptions with WHEN OTHERS.
+  - Best practices in logging error messages using SQLERRM and SQLCODE.
+  - Raising custom errors with RAISE_APPLICATION_ERROR.
+
+Each assignment solution provided above demonstrates a real-world scenario where these control structures and error handling techniques are applied, such as transferring funds, processing orders, validating inputs, computing discounts and taxes, and more.
+
+By mastering these examples and practicing with these procedures, you will be able to build robust PL/SQL applications that handle both program flow and error conditions gracefully. Feel free to test these procedures in your environment and modify them according to your database schema and business rules.
+
+---
+
+This comprehensive explanation and the full set of assignment solutions should give you a solid foundation in PL/SQL control structures and error handling, as described in the lecture (citeturn1file0).

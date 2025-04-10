@@ -1,0 +1,565 @@
+Below is a comprehensive explanation of the material in the document. The lecture covers PL/SQL basics, advanced techniques, and practical coding challenges. I’ve organized the explanation into sections that not only review the syntax and concepts but also provide sample solutions for the assignments presented in the document.
+
+---
+
+## 1. Overview of PL/SQL
+
+PL/SQL (Procedural Language/SQL) is Oracle’s procedural extension to SQL. It allows you to write code that includes variables, control structures, exception handling, and nested blocks. Two of the core building blocks in PL/SQL are:
+
+- **Functions:** These subprograms always return a value and can be used in SQL statements (e.g., in the SELECT clause). They are ideal for computations.
+- **Procedures:** These subprograms perform actions (such as modifying data) and do not directly return a value; they often use OUT or IN OUT parameters to pass back data.
+
+The document reviews how functions and procedures are structured, explains the syntax, and demonstrates how to incorporate exception handling, nested functions, recursion, and more.
+
+---
+
+## 2. PL/SQL Functions and Procedures: Syntax and Concepts
+
+### 2.1. Basic Function Syntax
+
+A PL/SQL function always returns a value. The basic structure includes:
+- **Declaration:** With `CREATE OR REPLACE FUNCTION`
+- **Parameters:** You can have parameters with their data types.
+- **Return Type:** Declared by the `RETURN` keyword.
+- **Body:** Contains the declarations (if any), executable statements, and exception handling.
+
+**Example without Exception Handling:**
+
+```sql
+CREATE OR REPLACE FUNCTION get_employee_name (
+    emp_id NUMBER  -- Input parameter
+) RETURN VARCHAR2   -- The function returns a string
+IS
+    v_name VARCHAR2(100);  -- Local variable declaration
+BEGIN
+    SELECT first_name || ' ' || last_name
+      INTO v_name
+      FROM employees
+     WHERE employee_id = emp_id;
+    
+    RETURN v_name;  -- Returning the computed full name
+END;
+/
+```
+
+In this example, the function accepts an employee ID and returns the full name by concatenating the first and last name from the `employees` table.
+
+**Example with Exception Handling:**
+
+```sql
+CREATE OR REPLACE FUNCTION calculate_area(
+    radius IN NUMBER  -- Input parameter for radius
+) RETURN NUMBER IS
+    area NUMBER;
+BEGIN
+    IF radius <= 0 THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Radius must be greater than zero');
+    END IF;
+    
+    area := 3.1416 * radius * radius;
+    RETURN area;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Error: ' || SQLERRM);
+        RETURN NULL;
+END calculate_area;
+/
+```
+
+This function checks for an invalid input (zero or negative radius) and uses exception handling to catch any errors.
+
+### 2.2. Basic Procedure Syntax
+
+Unlike functions, procedures do not return a value in the function sense but can return data through OUT parameters. The structure is similar:
+- **Declaration:** With `CREATE OR REPLACE PROCEDURE`
+- **Parameters:** Use IN, OUT, or IN OUT.
+- **Body:** Consists of the executable statements.
+
+**Example:**
+
+```sql
+CREATE OR REPLACE PROCEDURE update_salary (
+    p_emp_id     IN  employees.employee_id%TYPE,
+    p_new_salary IN  employees.salary%TYPE
+) IS
+BEGIN
+    UPDATE employees
+       SET salary = p_new_salary
+     WHERE employee_id = p_emp_id;
+END;
+/
+```
+
+Here, the procedure updates an employee's salary. Notice that no value is returned with a RETURN statement, though you might output messages or use OUT parameters if needed.
+
+### 2.3. Key Differences Between Functions and Procedures
+
+| Feature            | Function                                    | Procedure                              |
+| ------------------ | ------------------------------------------- | -------------------------------------- |
+| **Return Value**   | Always returns a value (can be scalar, record, or table) | Does not return a value directly       |
+| **Usage in SQL**   | Can be invoked in SQL (SELECT, WHERE, etc.) | Cannot be directly used in SQL queries |
+| **Parameters**     | Typically uses only IN parameters            | Can use IN, OUT, or IN OUT parameters  |
+
+---
+
+## 3. Exception Handling in PL/SQL
+
+Exception handling is critical to gracefully manage runtime errors. Both functions and procedures contain an `EXCEPTION` block.
+
+**Example Inside a Function:**
+
+```sql
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('No employee found with the given ID.');
+        RETURN 'Unknown';
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Unexpected error: ' || SQLERRM);
+        RETURN 'Error';
+```
+
+This code checks for specific exceptions like `NO_DATA_FOUND` and then uses a generic `OTHERS` clause to handle any other errors. Always include exception handling to avoid unhandled exceptions that might disrupt the flow of your application.
+
+---
+
+## 4. Advanced Function Usage
+
+### 4.1. Nested Functions
+
+A function can contain another (local) function within its body. The nested function is only accessible within the outer function.
+
+**Example:**
+
+```sql
+CREATE OR REPLACE FUNCTION get_total_compensation(emp_id NUMBER) RETURN NUMBER IS
+    v_salary NUMBER;
+    -- Nested function to calculate allowance (20% of salary)
+    FUNCTION get_allowance(emp_salary NUMBER) RETURN NUMBER IS
+    BEGIN
+        RETURN emp_salary * 0.20;
+    END get_allowance;
+BEGIN
+    SELECT salary INTO v_salary
+      FROM employees
+     WHERE employee_id = emp_id;
+     
+    RETURN v_salary + get_allowance(v_salary);
+END get_total_compensation;
+/
+```
+
+### 4.2. Recursive Functions
+
+Recursive functions call themselves to solve problems that can be broken down into smaller subproblems.
+
+**Factorial Example:**
+
+```sql
+CREATE OR REPLACE FUNCTION factorial(n IN NUMBER) RETURN NUMBER IS
+BEGIN
+    IF n = 0 THEN
+        RETURN 1;  -- Base case: 0! = 1
+    ELSE
+        RETURN n * factorial(n - 1);  -- Recursive call
+    END IF;
+END factorial;
+/
+```
+
+**Fibonacci Example:**
+
+```sql
+CREATE OR REPLACE FUNCTION fibonacci_func(n IN NUMBER) RETURN NUMBER IS
+    f NUMBER;
+BEGIN
+    IF n < 0 THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Input must be a non-negative integer');
+    ELSIF n = 0 THEN
+        f := 0;
+    ELSIF n = 1 THEN
+        f := 1;
+    ELSE
+        f := fibonacci_func(n - 1) + fibonacci_func(n - 2);
+    END IF;
+    RETURN f;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Error: ' || SQLERRM);
+        RETURN NULL;
+END fibonacci_func;
+/
+```
+
+The Fibonacci function uses recursion to calculate the sequence, with proper checks for non-negative inputs.
+
+---
+
+## 5. Oracle SQL Built-In Functions
+
+Oracle provides a rich set of built-in functions that help manipulate different types of data:
+
+### 5.1. Numeric Functions
+- **ABS(x):** Returns the absolute value of x.
+- **ROUND(x, decimals):** Rounds a number to the specified decimal place.
+- **SQRT(x):** Returns the square root of a number.
+
+**Usage Example:**
+
+```sql
+SELECT ABS(-5) AS absolute_value,
+       ROUND(45.678, 2) AS rounded_value,
+       SQRT(16) AS square_root
+FROM dual;
+```
+
+### 5.2. Character Functions
+- **UPPER(x):** Converts a string to uppercase.
+- **SUBSTR(x, start, length):** Extracts a substring.
+- **CONCAT(x, y):** Concatenates two strings.
+
+**Usage Example:**
+
+```sql
+SELECT UPPER('hello') AS upper_case,
+       SUBSTR('Oracle PL/SQL', 8, 6) AS substring,
+       CONCAT('Oracle', ' PL/SQL') AS full_text
+FROM dual;
+```
+
+### 5.3. Date Functions
+- **SYSDATE:** Returns the current date and time.
+- **ADD_MONTHS(date, n):** Adds n months to a date.
+- **LAST_DAY(date):** Returns the last day of the month for the given date.
+
+**Usage Example:**
+
+```sql
+SELECT SYSDATE AS current_date,
+       ADD_MONTHS(SYSDATE, 3) AS future_date,
+       LAST_DAY(SYSDATE) AS last_day_of_month
+FROM dual;
+```
+
+### 5.4. Conversion Functions
+- **TO_CHAR(x, format):** Converts a date or number to a string.
+- **TO_NUMBER(x):** Converts a string to a number.
+- **CAST(x AS datatype):** Converts an expression to a different datatype.
+
+**Usage Example:**
+
+```sql
+SELECT TO_CHAR(SYSDATE, 'DD-MON-YYYY') AS date_string,
+       TO_NUMBER('12345') AS number_value
+FROM dual;
+```
+
+### 5.5. Aggregate Functions
+- **SUM(column):** Returns the total sum of a numeric column.
+- **AVG(column):** Returns the average.
+- **COUNT(column):** Returns the count of rows.
+
+**Usage Example:**
+
+```sql
+SELECT COUNT(*), AVG(salary), SUM(salary)
+FROM employees;
+```
+
+### 5.6. Analytic Functions (Window Functions)
+Analytic functions perform calculations across a set of table rows that are somehow related to the current row.
+- **RANK() OVER (PARTITION BY ... ORDER BY ...):** Ranks rows within partitions.
+- **DENSE_RANK(), ROW_NUMBER(), LAG(), LEAD():** Other useful functions for comparing rows.
+
+---
+
+## 6. Assignment Solutions
+
+### 6.1. Assignment on SQL Window Functions
+
+**Objective:**  
+You need to use SQL window functions on a dataset (for example, employees or sales) and perform several tasks.
+
+Below are sample queries for each part of the assignment. You can adapt these examples to your chosen domain (e.g., employees, products, sales).
+
+#### 6.1.1. Compare Values with Previous/Next Records using LAG() and LEAD()
+
+Assume we have a table called `employees` with columns `employee_id`, `department_id`, and `salary`.
+
+**Query Example:**
+
+```sql
+SELECT employee_id,
+       salary,
+       LAG(salary) OVER (ORDER BY employee_id) AS previous_salary,
+       CASE 
+           WHEN salary > LAG(salary) OVER (ORDER BY employee_id) THEN 'HIGHER'
+           WHEN salary < LAG(salary) OVER (ORDER BY employee_id) THEN 'LOWER'
+           ELSE 'EQUAL'
+       END AS comparison_with_previous,
+       LEAD(salary) OVER (ORDER BY employee_id) AS next_salary
+FROM employees;
+```
+
+This query compares the salary of each employee with the previous record’s salary (sorted by `employee_id`).
+
+#### 6.1.2. Ranking Data within a Category
+
+**Using RANK() and DENSE_RANK():**
+
+```sql
+SELECT employee_id,
+       department_id,
+       salary,
+       RANK() OVER (PARTITION BY department_id ORDER BY salary DESC) AS rank_salary,
+       DENSE_RANK() OVER (PARTITION BY department_id ORDER BY salary DESC) AS dense_rank_salary
+FROM employees;
+```
+
+**Explanation:**  
+- **RANK()** will leave gaps in ranking when duplicate salaries exist.  
+- **DENSE_RANK()** will assign consecutive ranking numbers even when duplicates occur.
+
+#### 6.1.3. Fetching the Top 3 Records from Each Category
+
+For top 3 salaries per department, you can use the ROW_NUMBER() function:
+
+```sql
+SELECT *
+FROM (
+  SELECT employee_id,
+         department_id,
+         salary,
+         ROW_NUMBER() OVER (PARTITION BY department_id ORDER BY salary DESC) AS rn
+  FROM employees
+)
+WHERE rn <= 3;
+```
+
+This query assigns a row number for each employee partitioned by department and selects the top three.
+
+#### 6.1.4. Finding the Earliest Records Based on a Date Column
+
+Assume a table `sales` with a `sale_date` column. Retrieve the first 2 sales transactions per region:
+
+```sql
+SELECT *
+FROM (
+  SELECT sale_id,
+         region,
+         sale_date,
+         ROW_NUMBER() OVER (PARTITION BY region ORDER BY sale_date ASC) AS rn
+  FROM sales
+)
+WHERE rn <= 2;
+```
+
+#### 6.1.5. Aggregation with Window Functions
+
+For each employee, calculate the maximum salary within their department and the overall maximum salary across all employees:
+
+```sql
+SELECT employee_id,
+       department_id,
+       salary,
+       MAX(salary) OVER (PARTITION BY department_id) AS max_dept_salary,
+       MAX(salary) OVER () AS overall_max_salary
+FROM employees;
+```
+
+Here, the `PARTITION BY` clause is used to compute both category-level and overall aggregate values.
+
+---
+
+### 6.2. Assignment on Adjusting Employee Salaries
+
+**Task Overview:**  
+Create a procedure named `adjust_employee_salary` that uses an IN parameter (`emp_id`), an IN OUT parameter (`salary`), and an OUT parameter (`new_salary`). It should:
+- Increase the salary by 10% if below $50,000.
+- Increase it by a fixed $5,000 if it is $50,000 or above.
+- Cap the adjusted salary at $100,000 and output a message if the cap is reached.
+- Use a function `calculate_bonus` to compute the bonus amount.
+
+#### Step 1: Create the Bonus Function
+
+```sql
+CREATE OR REPLACE FUNCTION calculate_bonus(p_salary NUMBER) RETURN NUMBER IS
+BEGIN
+    IF p_salary IS NULL OR p_salary < 0 THEN
+        RAISE_APPLICATION_ERROR(-20002, 'Invalid salary input');
+    END IF;
+    RETURN p_salary * 0.10;
+EXCEPTION
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Error in calculate_bonus: ' || SQLERRM);
+        RETURN 0;
+END calculate_bonus;
+/
+```
+
+#### Step 2: Create the Procedure to Adjust Salaries
+
+```sql
+CREATE OR REPLACE PROCEDURE adjust_employee_salary (
+    emp_id     IN  NUMBER,
+    salary     IN OUT NUMBER,
+    new_salary OUT NUMBER
+) IS
+    bonus NUMBER;
+BEGIN
+    -- Calculate bonus using the function
+    bonus := calculate_bonus(salary);
+    
+    IF salary < 50000 THEN
+        new_salary := salary + bonus;
+    ELSE
+        new_salary := salary + 5000;
+    END IF;
+    
+    -- Enforce the salary cap
+    IF new_salary > 100000 THEN
+        new_salary := 100000;
+        DBMS_OUTPUT.PUT_LINE('Note: Adjusted salary capped at $100,000.');
+    END IF;
+    
+    -- Example of updating the employee record can be done here if desired.
+    -- UPDATE employees SET salary = new_salary WHERE employee_id = emp_id;
+    
+EXCEPTION
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Unexpected error: ' || SQLERRM);
+        new_salary := -1;  -- Indicate failure
+END adjust_employee_salary;
+/
+```
+
+**Follow-up Explanations:**
+
+- **What happens if the IN OUT parameter `salary` isn’t assigned a value?**  
+  Since IN OUT parameters must receive a value on entry (and are passed back upon exit), not assigning an initial value would cause an error or unexpected behavior. Always ensure the variable is properly initialized before calling the procedure.
+
+- **How do you enforce the salary cap?**  
+  The procedure checks if the `new_salary` exceeds $100,000 using a simple IF statement:
+  
+  ```sql
+  IF new_salary > 100000 THEN
+      new_salary := 100000;
+      DBMS_OUTPUT.PUT_LINE('Note: Adjusted salary capped at $100,000.');
+  END IF;
+  ```
+
+- **Calling the Bonus Function from within the Procedure:**  
+  In the procedure, the line:
+  
+  ```sql
+  bonus := calculate_bonus(salary);
+  ```
+  
+  shows the direct invocation of `calculate_bonus` to compute 10% of the input salary.
+
+#### Testing the Procedure
+
+You can test the procedure with an anonymous block:
+
+```sql
+DECLARE
+    v_salary     NUMBER := 48000;  -- Input salary
+    v_new_salary NUMBER;
+BEGIN
+    adjust_employee_salary(emp_id => 101, salary => v_salary, new_salary => v_new_salary);
+    DBMS_OUTPUT.PUT_LINE('Original Salary: ' || v_salary);
+    DBMS_OUTPUT.PUT_LINE('Adjusted Salary: ' || v_new_salary);
+END;
+/
+```
+
+This block sets an initial salary, calls the procedure, and prints out the adjusted salary.
+
+---
+
+## 7. Additional Examples: Pattern Printing Procedures
+
+The document also covers examples of using procedures to print shapes like triangles and pyramids.
+
+### 7.1. Triangle Pattern Procedure
+
+```sql
+CREATE OR REPLACE PROCEDURE print_triangle_pattern (n IN NUMBER, stars_count OUT NUMBER) IS
+BEGIN
+  stars_count := 0;  -- Initialize total stars count
+  FOR i IN 1..n LOOP
+    FOR j IN 1..i LOOP
+      DBMS_OUTPUT.PUT(' * ');
+      stars_count := stars_count + 1;
+    END LOOP;
+    DBMS_OUTPUT.PUT_LINE('');  -- New line after each row
+  END LOOP;
+  DBMS_OUTPUT.PUT_LINE('Total stars printed: ' || stars_count);
+END print_triangle_pattern;
+/
+```
+
+Test the procedure:
+
+```sql
+DECLARE
+    total_stars NUMBER;
+BEGIN
+    print_triangle_pattern(5, total_stars);
+    DBMS_OUTPUT.PUT_LINE('Total stars printed: ' || total_stars);
+END;
+/
+```
+
+### 7.2. Pyramid Pattern Procedure
+
+```sql
+CREATE OR REPLACE PROCEDURE print_pyramid_pattern (n IN NUMBER) IS
+BEGIN
+   IF n <= 0 THEN
+      RAISE_APPLICATION_ERROR(-20001, 'The number of rows must be a positive integer.');
+   END IF;
+   FOR i IN 1..n LOOP
+      -- Print spaces for center alignment
+      FOR j IN 1..(n-i) LOOP
+         DBMS_OUTPUT.PUT(' ');
+      END LOOP;
+      -- Print stars for the pyramid shape; 2*i-1 gives the count
+      FOR k IN 1..(2*i - 1) LOOP
+         DBMS_OUTPUT.PUT('*');
+      END LOOP;
+      DBMS_OUTPUT.NEW_LINE;
+   END LOOP;
+EXCEPTION
+   WHEN VALUE_ERROR THEN
+      DBMS_OUTPUT.PUT_LINE('Error: Invalid value encountered.');
+   WHEN OTHERS THEN
+      DBMS_OUTPUT.PUT_LINE('Unexpected error: ' || SQLERRM);
+END print_pyramid_pattern;
+/
+```
+
+Test the pyramid procedure:
+
+```sql
+BEGIN
+   print_pyramid_pattern(5);
+END;
+/
+```
+
+---
+
+## 8. Conclusion
+
+The document covers a wide range of topics in PL/SQL, including:
+- The differences between functions and procedures.
+- Detailed syntax for creating PL/SQL subprograms.
+- Advanced topics such as nested and recursive functions.
+- Utilization of built-in Oracle SQL functions to manipulate and analyze data.
+- Hands-on assignments including working with SQL window functions and a task to adjust employee salaries with business rules.
+
+Each section not only teaches you the syntax but also provides practical examples and complete solutions that you can use as a template for your own projects. By mastering these concepts, you’ll be well prepared to write modular, reusable, and robust PL/SQL code that can be executed efficiently on Oracle databases.
+
+Feel free to adapt the sample code and queries according to your specific database schemas and assignment requirements.
