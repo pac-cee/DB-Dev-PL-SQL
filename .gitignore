@@ -1,2 +1,20 @@
-# Ignore Visual Studio Code settings
+# IDE settings
 .vscode/
+
+# Build outputs and debug folders
+**/Debug/
+build/
+
+# Generated files and logs
+*.log
+
+# Local configuration
+*.ps1
+
+# Temporary and backup files
+*.bak
+*.tmp
+
+
+# Keep important documentation
+!README.md
