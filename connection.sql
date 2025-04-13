@@ -7,7 +7,8 @@ BEGIN
     SET @connection_host = 'localhost';
     SET @connection_port = 3306;
     SET @connection_user = 'root';
-    SET @connection_pass = 'Euqificap12.';
+    SET @connection_pass = ''; // Set your password here
+    SET @connection_db = 'your_database_name'; // Set your database name here
 END //
 
 -- Create a procedure to use or create a database

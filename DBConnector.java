@@ -8,7 +8,8 @@ import java.util.Scanner;
 public class DBConnector {
     // Configuration for PostgreSQL
     private static final String PG_USER = "postgres";
-    private static final String PG_PASSWORD = "Euqificap12";
+    private static final String PG_PASSWORD = "";// updated to remove sensitive information
+    // For security reasons, avoid hardcoding sensitive information like passwords in the code.
     private static final String PG_HOST = "localhost";
     private static final String PG_PORT = "5432";
     // For PostgreSQL, the default database to connect and list other db's is often "postgres"
@@ -16,7 +17,7 @@ public class DBConnector {
 
     // Configuration for MySQL
     private static final String MYSQL_USER = "root";
-    private static final String MYSQL_PASSWORD = "Euqificap12";
+    private static final String MYSQL_PASSWORD = ""; // updated to remove sensitive information
     private static final String MYSQL_HOST = "localhost";
     private static final String MYSQL_PORT = "3306";
     // For MySQL, we can connect to the "mysql" system database to list available ones.

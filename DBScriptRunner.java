@@ -11,7 +11,7 @@ public class DBScriptRunner {
 
     // Configuration for PostgreSQL
     private static final String PG_USER = "postgres";
-    private static final String PG_PASSWORD = "Euqificap12";
+    private static final String PG_PASSWORD = ""; // updated to remove sensitive information
     private static final String PG_HOST = "localhost";
     private static final String PG_PORT = "5432";
     // For demonstration, we will use the "postgres" database to run our SQL script.
@@ -19,7 +19,7 @@ public class DBScriptRunner {
 
     // Configuration for MySQL
     private static final String MYSQL_USER = "root";
-    private static final String MYSQL_PASSWORD = "Euqificap12";
+    private static final String MYSQL_PASSWORD = ""; // updated to remove sensitive information
     private static final String MYSQL_HOST = "localhost";
     private static final String MYSQL_PORT = "3306";
     // For demonstration, using the "mysql" database
