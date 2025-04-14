@@ -1,4 +1,5 @@
-Below is a comprehensive attempt to address all phases of the capstone project using the Smart Bus Booking System for Rwanda as the chosen project.
+Below is a comprehensive attempt to address all phases of the capstone project using the 
+Smart Bus Booking System for Rwanda as the chosen project.
 
 ---
 

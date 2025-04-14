@@ -1,0 +1,57 @@
+---
+title: Smart Bus Booking System - Entity Relationship Diagram
+---
+erDiagram
+    USERS ||--o{ BOOKINGS : "makes"
+    USERS {
+        number user_id PK
+        string first_name
+        string last_name
+        string email UK
+        string phone_number
+        date created_date
+    }
+
+    BUS_TERMINALS ||--o{ BUSES : "manages"
+    BUS_TERMINALS {
+        number terminal_id PK
+        string location
+        string operating_hours
+        string contact_info
+    }
+
+    BUSES ||--o{ SCHEDULES : "serves"
+    BUSES {
+        number bus_id PK
+        number terminal_id FK
+        number seating_capacity
+        string service_route
+        string bus_type
+    }
+
+    ROUTES ||--o{ SCHEDULES : "has"
+    ROUTES {
+        number route_id PK
+        string origin
+        string destination
+        number base_fare
+    }
+
+    SCHEDULES ||--o{ BOOKINGS : "contains"
+    SCHEDULES {
+        number schedule_id PK
+        number route_id FK
+        number bus_id FK
+        timestamp departure_time
+        timestamp arrival_time
+        string frequency
+    }
+
+    BOOKINGS {
+        number booking_id PK
+        number user_id FK
+        number schedule_id FK
+        number seat_number
+        timestamp booking_date
+        string payment_status
+    }
