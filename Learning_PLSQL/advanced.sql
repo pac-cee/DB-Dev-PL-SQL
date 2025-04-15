@@ -215,6 +215,228 @@ BEGIN
 END;
 /
 
+-- =============================================
+-- Advanced PL/SQL Package Definition
+-- =============================================
+
+/*
+Package: emp_mgmt_pkg
+Purpose: Comprehensive employee management functionality
+Features: 
+- Salary management
+- Bonus calculations
+- Bulk updates
+- Audit logging
+Benefits:
+- Encapsulation of related functionality
+- State management across calls
+- Better performance through caching
+- Modular and maintainable code
+*/
+
+CREATE OR REPLACE PACKAGE emp_mgmt_pkg IS
+    -- Constants section
+    -- ----------------
+    -- Defines business rules and limits
+    c_min_salary CONSTANT NUMBER := 30000;  -- Minimum allowed salary
+    c_max_salary CONSTANT NUMBER := 150000; -- Maximum allowed salary
+    c_max_bonus_pct CONSTANT NUMBER := 0.20; -- Maximum bonus percentage
+    
+    -- Custom Types section
+    -- -------------------
+    -- Record type for employee data
+    -- Benefits: 
+    -- - Strong typing
+    -- - Reduced parameter lists
+    -- - Improved maintainability
+    TYPE emp_record_type IS RECORD (
+        emp_id    NUMBER,
+        name      VARCHAR2(100),
+        salary    NUMBER,
+        dept_id   NUMBER
+    );
+    
+    -- Collection type for bulk operations
+    -- Benefits:
+    -- - Efficient bulk processing
+    -- - Reduced context switching
+    -- - Better performance for large datasets
+    TYPE emp_table_type IS TABLE OF emp_record_type;
+    
+    -- Function Declarations
+    -- --------------------
+    -- Calculate employee bonus based on performance and tenure
+    -- Parameters:
+    --   p_emp_id: Employee ID
+    --   p_performance_rating: Rating from 1-5
+    -- Returns: Calculated bonus amount
+    FUNCTION calculate_bonus(
+        p_emp_id IN NUMBER,
+        p_performance_rating IN NUMBER
+    ) RETURN NUMBER;
+    
+    -- Procedure Declarations
+    -- ---------------------
+    -- Updates employee salary with full audit trail
+    -- Features:
+    -- - Validation of salary ranges
+    -- - Automatic audit logging
+    -- - Transaction management
+    -- - Error handling
+    PROCEDURE update_salary(
+        p_emp_id IN NUMBER,
+        p_new_salary IN NUMBER,
+        p_reason_code IN VARCHAR2,
+        p_effective_date IN DATE DEFAULT SYSDATE
+    );
+END emp_mgmt_pkg;
+/
+
+-- Package Body Implementation
+-- =========================
+-- Contains the actual implementation of package components
+CREATE OR REPLACE PACKAGE BODY emp_mgmt_pkg IS
+    -- Private Variables
+    -- ----------------
+    -- Used for internal state management
+    v_last_updated_by VARCHAR2(30);
+    v_last_update_date DATE;
+    
+    -- Private Helper Functions
+    -- -----------------------
+    -- Validates salary against business rules
+    -- Returns: TRUE if salary is valid, FALSE otherwise
+    FUNCTION is_valid_salary(
+        p_salary IN NUMBER,
+        p_dept_id IN NUMBER
+    ) RETURN BOOLEAN
+    IS
+        v_dept_avg NUMBER;
+        v_max_allowed NUMBER;
+    BEGIN
+        -- Get department average for comparison
+        SELECT AVG(salary) INTO v_dept_avg
+        FROM employees
+        WHERE department_id = p_dept_id;
+        
+        -- Calculate maximum allowed based on department average
+        v_max_allowed := v_dept_avg * 2;
+        
+        -- Check against both absolute and relative limits
+        RETURN (p_salary BETWEEN c_min_salary AND c_max_salary) AND
+               (p_salary <= v_max_allowed);
+    END is_valid_salary;
+    
+    -- Public Function Implementations
+    -- -----------------------------
+    FUNCTION calculate_bonus(
+        p_emp_id IN NUMBER,
+        p_performance_rating IN NUMBER
+    ) RETURN NUMBER
+    IS
+        v_salary NUMBER;
+        v_years_service NUMBER;
+        v_bonus_pct NUMBER;
+    BEGIN
+        -- Input validation
+        IF p_performance_rating NOT BETWEEN 1 AND 5 THEN
+            RAISE_APPLICATION_ERROR(-20001, 'Invalid performance rating');
+        END IF;
+        
+        -- Get employee details
+        SELECT salary, FLOOR(MONTHS_BETWEEN(SYSDATE, hire_date)/12)
+        INTO v_salary, v_years_service
+        FROM employees
+        WHERE employee_id = p_emp_id;
+        
+        -- Calculate bonus percentage based on performance and tenure
+        v_bonus_pct := (p_performance_rating/5) * 
+                       (LEAST(v_years_service, 10)/10) * 
+                       c_max_bonus_pct;
+        
+        RETURN ROUND(v_salary * v_bonus_pct, 2);
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            RAISE_APPLICATION_ERROR(-20002, 'Employee not found');
+        WHEN OTHERS THEN
+            -- Log error and re-raise
+            log_error(SQLCODE, SQLERRM, 'calculate_bonus');
+            RAISE;
+    END calculate_bonus;
+    
+    -- Public Procedure Implementations
+    -- ------------------------------
+    PROCEDURE update_salary(
+        p_emp_id IN NUMBER,
+        p_new_salary IN NUMBER,
+        p_reason_code IN VARCHAR2,
+        p_effective_date IN DATE DEFAULT SYSDATE
+    ) IS
+        v_old_salary NUMBER;
+        v_dept_id NUMBER;
+        
+        -- Custom exception for invalid salary
+        e_invalid_salary EXCEPTION;
+        PRAGMA EXCEPTION_INIT(e_invalid_salary, -20003);
+    BEGIN
+        -- Get current employee details
+        SELECT salary, department_id 
+        INTO v_old_salary, v_dept_id
+        FROM employees
+        WHERE employee_id = p_emp_id;
+        
+        -- Validate new salary
+        IF NOT is_valid_salary(p_new_salary, v_dept_id) THEN
+            RAISE e_invalid_salary;
+        END IF;
+        
+        -- Update salary
+        UPDATE employees
+        SET salary = p_new_salary,
+            last_updated_date = p_effective_date,
+            last_updated_by = v_last_updated_by
+        WHERE employee_id = p_emp_id;
+        
+        -- Create audit record
+        INSERT INTO salary_changes (
+            employee_id,
+            old_salary,
+            new_salary,
+            change_date,
+            reason_code,
+            changed_by
+        ) VALUES (
+            p_emp_id,
+            v_old_salary,
+            p_new_salary,
+            p_effective_date,
+            p_reason_code,
+            v_last_updated_by
+        );
+        
+        COMMIT;
+        
+    EXCEPTION
+        WHEN e_invalid_salary THEN
+            ROLLBACK;
+            RAISE_APPLICATION_ERROR(-20003, 
+                'Invalid salary: Must be between ' || c_min_salary || 
+                ' and ' || c_max_salary || ' and within department limits');
+        WHEN OTHERS THEN
+            ROLLBACK;
+            log_error(SQLCODE, SQLERRM, 'update_salary');
+            RAISE;
+    END update_salary;
+    
+    -- Package Initialization
+    -- --------------------
+    -- Runs when package is first loaded into memory
+    BEGIN
+        v_last_updated_by := SYS_CONTEXT('USERENV', 'SESSION_USER');
+        v_last_update_date := SYSDATE;
+END emp_mgmt_pkg;
+/
+
 -- 4. Cursors
 -- Explicit cursor example
 DECLARE

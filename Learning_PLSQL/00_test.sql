@@ -140,20 +140,48 @@ CREATE SEQUENCE emp_seq
     NOCYCLE;
 
 -- Views
+-- ---------------------------------------------
+-- emp_dept_view: Creates a logical view combining employee and department data
+-- Purpose: Simplifies queries by joining employee and department information
+-- Use Case: Reporting and analysis where both employee and department info is needed
+-- Benefits: Encapsulates join logic and provides data abstraction
 CREATE VIEW emp_dept_view AS
 SELECT e.name, d.dept_name
 FROM employees e
 JOIN departments d ON e.dept_id = d.dept_id;
 
 -- Indexes
+-- ---------------------------------------------
+-- 1. Basic B-tree index on employee names
+-- Purpose: Speeds up searches on employee names
+-- Use Case: Quick employee lookups by name
+-- Type: Non-unique B-tree index
 CREATE INDEX idx_emp_name ON employees(name);
+
+-- 2. Unique index on employee email
+-- Purpose: Ensures email uniqueness and speeds up email lookups
+-- Use Case: Email validation and user authentication
+-- Type: Unique B-tree index
+-- Note: Also acts as a constraint preventing duplicate emails
 CREATE UNIQUE INDEX idx_emp_email ON employees(email);
 
 -- Constraints
+-- ---------------------------------------------
+-- 1. Foreign Key Constraint
+-- Purpose: Ensures referential integrity between employees and departments
+-- Behavior: 
+--   - Prevents adding employees with invalid department IDs
+--   - Prevents deleting departments that have employees (by default)
 ALTER TABLE employees ADD CONSTRAINT fk_dept 
     FOREIGN KEY (dept_id) 
     REFERENCES departments(dept_id);
 
+-- 2. Check Constraint
+-- Purpose: Enforces business rule for valid salary values
+-- Behavior: 
+--   - Prevents negative salary values
+--   - Validates both INSERT and UPDATE operations
+-- Note: Basic data validation to maintain data integrity
 ALTER TABLE employees ADD CONSTRAINT chk_salary 
     CHECK (salary > 0);
 
