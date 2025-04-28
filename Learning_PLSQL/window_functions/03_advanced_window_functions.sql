@@ -6,7 +6,10 @@ SELECT
     department,
     first_name,
     salary,
-    FIRST_VALUE(salary) OVER (PARTITION BY department ORDER BY salary DESC) as highest_dept_salary,
+    FIRST_VALUE(salary) OVER (
+        PARTITION BY department
+         ORDER BY salary DESC
+    ) as highest_dept_salary,
     LAST_VALUE(salary) OVER (
         PARTITION BY department 
         ORDER BY salary DESC
